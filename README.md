@@ -287,5 +287,3 @@ Cliquez **⚙ Seuils** pour ajuster les niveaux jaune/rouge.
 </div>
 
 ---
-
-C'est prêt ! Tu peux copier-coller ce contenu directement dans ton `README.md` sur GitHub.
