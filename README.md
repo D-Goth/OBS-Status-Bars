@@ -1,88 +1,10 @@
-# ✅ OBS Status Bars
-
-<div align="center">
-  <img src="docs/preview.png" alt="OBS Status Bars Preview" width="600"><br>
-  <em>Real‑time monitoring for OBS · 7 metrics · Configurable thresholds · WebSocket</em><br><br>
-
-  <img src="https://img.shields.io/badge/version-1.0-blue.svg" alt="Version 1.0">
-  <img src="https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey.svg" alt="License CC BY-NC 4.0">
-  <img src="https://img.shields.io/badge/OBS-WebSocket%205.0+-green.svg" alt="OBS WebSocket 5.0+">
-</div>
-
----
-
-# 📋 Table of Contents / Sommaire
-
-## 🇬🇧 English
-- [Why?](#-why)
-- [Features](#-features)
-- [Installation](#-installation)
-- [Configuration](#%EF%B8%8F-configuration)
-- [Metrics](#-metrics)
-- [Technical overview](#-technical-overview)
-- [Troubleshooting](#-troubleshooting)
-- [License](#-license)
-
-## 🇫🇷 Français
-- [Pourquoi ?](#-pourquoi-)
-- [Fonctionnalités](#-fonctionnalités)
-- [Installation](#-installation-1)
-- [Configuration](#%EF%B8%8F-configuration-1)
-- [Métriques](#-métriques)
-- [Aperçu technique](#-aperçu-technique)
-- [Dépannage](#-dépannage)
-- [Licence](#-licence)
-
----
-
-# 🇬🇧 English
-
-## 🎯 Why?
-
-When you're streaming, you need to know at a glance if everything is running smoothly:
-
-- Is the CPU struggling?  
-- Is the encoder dropping frames?  
-- Is the bitrate stable?  
-- Is network congestion threatening the stream?
-
-OBS provides these stats… but they're scattered across different panels.
-
-**OBS Status Bars** brings them together in a compact dock, with an intuitive visual display and fully customizable thresholds.
-
----
-
-## ✨ Features
-
-- ✅ Native WebSocket connection to OBS (protocol 5.0+)  
-- ✅ 7 real‑time metrics: CPU, GPU, RAM, ENC, DROP, NET, CONG  
-- ✅ 16‑point history → see trends at a glance  
-- ✅ Dynamic color coding (green / yellow / orange / red)  
-- ✅ Configurable thresholds for every metric  
-- ✅ Detailed tooltips on hover  
-- ✅ Auto‑reconnect with progressive backoff  
-- ✅ Optional password storage in browser  
-- ✅ Zero dependencies → single HTML file  
-
----
-
-## 🚀 Installation
-
-### Get the file
-
-```bash
-git clone https://github.com/D-Goth/OBS-Status-Bar.git
-# or just download OBS-Status-Bar.html
-```
---- 
 # **OBS Status Bars**
 
 Real‑time monitoring for OBS · 7 metrics · Configurable thresholds · WebSocket
 
-[Il semble que le résultat n’était pas sûr à afficher. Changeons un peu et essayons autre chose !]
-
 Version : 1.0  
 Licence : CC BY‑NC 4.0  
+Auteur : D‑Goth / Black‑Lab  
 Compatibilité : OBS WebSocket 5.0+
 📋 Table of Contents / Sommaire
 🇬🇧 English
@@ -260,7 +182,8 @@ CC BY‑NC 4.0 — Attribution · NonCommercial
 
     No commercial use
 
-Full license: https://creativecommons.org/licenses/by-nc/4.0/
+Full license:
+https://creativecommons.org/licenses/by-nc/4.0/
 👤 Credits
 
     Author: D‑Goth / Black‑Lab.fr
@@ -363,4 +286,3 @@ Merci : communauté OBS
 
 Bon stream ! 🔴🎮  
 Made with ❤️ in the Black‑Lab
-
