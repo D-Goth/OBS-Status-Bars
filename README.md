@@ -2,6 +2,10 @@
 
 Real‑time monitoring for OBS · 7 metrics · Configurable thresholds · WebSocket
 
+![Vue globale avec le chat Twitch](https://github.com/D-Goth/OBS-Status-Bar/raw/main/status_bar_twitch.png)
+![Panneau de configuration OBS Status Bars](https://github.com/D-Goth/OBS-Status-Bar/raw/main/Config_Panel.png)
+![Barre de statut OBS Status Bars](https://github.com/D-Goth/OBS-Status-Bar/raw/main/Status_Bar.png)
+
 **Version** : 1.0  
 **Licence** : CC BY‑NC 4.0  
 **Auteur** : D‑Goth / Black‑Lab  
