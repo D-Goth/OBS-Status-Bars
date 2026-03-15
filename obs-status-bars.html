@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<!--
+  ╔══════════════════════════════════════════════════════╗
+  ║                     OBS STATUS BARS                  ║
+  ║                 Monitoring WebSocket OBS             ║
+  ╚══════════════════════════════════════════════════════╝
+  Auteur : D-Goth / Black‑Lab
+  Version : 1.0
+  Site : https://black-lab.fr
+
+  Licence  : CC BY-NC 4.0
+  Usage    : Libre pour usage non commercial avec attribution.
+             https://creativecommons.org/licenses/by-nc/4.0/
+
+  © 2026 Black‑Lab — Tous droits réservés.
+-->
+
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="author" content="D-Goth / Black‑Lab.fr">
+<meta name="license" content="CC BY-NC 4.0">
+<meta name="version" content="1.0">
+<meta name="description" content="OBS Status Bars — Monitoring WebSocket pour OBS">
+
+<title>OBS Status Bars</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #1c1c1c;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    font-size: 11px; color: #d0d0d0;
+    user-select: none;
+  }
+
+  /* ══════════════ PANELS ══════════════ */
+  .panel {
+    position: fixed; inset: 0; background: #1c1c1c;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 6px; padding: 10px; z-index: 100;
+  }
+  .panel.hidden { display: none; }
+  .panel h3 { font-size: 11px; font-weight: 600; color: #fff; letter-spacing: 0.04em; margin-bottom: 2px; }
+
+  /* Form rows */
+  .row { display: flex; align-items: center; gap: 6px; width: 100%; max-width: 290px; }
+  .row label { font-size: 10px; color: #888; min-width: 68px; text-align: right; flex-shrink: 0; }
+  .row input[type="text"],
+  .row input[type="number"],
+  .row input[type="password"] {
+    flex: 1; background: #2b2b2b; border: 1px solid #3d3d3d; color: #ccc;
+    padding: 3px 6px; border-radius: 3px; font-size: 10px; font-family: inherit; outline: none;
+  }
+  .row input:focus { border-color: #4caf50; }
+
+  /* Checkbox row */
+  .row.check { gap: 6px; }
+  .row.check label { min-width: auto; text-align: left; color: #666; cursor: pointer; }
+  .row.check input[type="checkbox"] { accent-color: #4caf50; cursor: pointer; width: 12px; height: 12px; }
+
+  .btn {
+    margin-top: 4px; background: #2b3d2b; border: 1px solid #4caf50; color: #4caf50;
+    padding: 4px 14px; border-radius: 3px; cursor: pointer; font-size: 10px;
+    font-family: inherit; letter-spacing: 0.05em; transition: background 0.15s;
+  }
+  .btn:hover { background: #3a5c3a; }
+  .btn.secondary { background: #2b2b2b; border-color: #555; color: #888; }
+  .btn.secondary:hover { border-color: #888; color: #ccc; }
+  .btn-row { display: flex; gap: 6px; margin-top: 2px; }
+
+  .msg { font-size: 10px; color: #f55; min-height: 13px; }
+  .msg.ok { color: #4caf50; }
+
+  .divider { width: 100%; max-width: 290px; height: 1px; background: #2e2e2e; margin: 2px 0; }
+
+  /* ══════════════ THRESHOLDS PANEL ══════════════ */
+  .th-grid {
+    display: grid;
+    grid-template-columns: 60px 1fr 1fr;
+    gap: 4px 8px;
+    width: 100%;
+    max-width: 290px;
+    align-items: center;
+  }
+  .th-grid .hdr { font-size: 9px; color: #555; text-align: center; }
+  .th-grid .lbl { font-size: 10px; color: #888; text-align: right; }
+  .th-grid input[type="range"] {
+    width: 100%; accent-color: #4caf50; cursor: pointer; height: 12px;
+  }
+  .th-val { font-size: 9px; color: #666; text-align: center; min-width: 28px; }
+
+  /* ══════════════ STATUS BAR ══════════════ */
+  #bar {
+    display: none; width: 100%; height: 100%;
+    padding: 3px 8px 3px 6px;
+    background: #1c1c1c;
+    align-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+  #bar.visible { display: flex; }
+
+  .fps { font-size: 10.5px; color: #b0b0b0; white-space: nowrap; flex-shrink: 0; }
+
+  .sep { width: 1px; height: 13px; background: #3a3a3a; flex-shrink: 0; align-self: center; }
+
+  .metric { display: flex; align-items: center; gap: 3px; position: relative; cursor: default; flex-shrink: 0; }
+  .metric-lbl { font-size: 10px; color: #888; letter-spacing: 0.04em; min-width: 28px; }
+
+  .bars { display: flex; gap: 1px; align-items: flex-end; height: 12px; }
+  .b { width: 3px; border-radius: 1px 1px 0 0; transition: height 0.3s ease, background 0.3s ease; min-height: 1px; }
+  .b.off    { background: #333; height: 12px; opacity: 0.4; }
+  .b.green  { background: #4caf50; }
+  .b.yellow { background: #ffc107; }
+  .b.orange { background: #ff7043; }
+  .b.red    { background: #f44336; }
+
+  .tip {
+    position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: #111; border: 1px solid #444; color: #ccc;
+    font-size: 9.5px; padding: 3px 8px; border-radius: 3px;
+    white-space: nowrap; opacity: 0; pointer-events: none;
+    transition: opacity 0.15s; z-index: 200;
+  }
+  .metric:hover .tip { opacity: 1; }
+
+  .spacer { flex: 1 1 0; min-width: 4px; }
+
+  /* Retry indicator */
+  #retry-badge {
+    font-size: 9px; color: #555; white-space: nowrap; flex-shrink: 0;
+    display: none;
+  }
+  #retry-badge.visible { display: block; }
+
+  #offline { display: none; font-size: 9px; color: #555; white-space: nowrap; align-items: center; gap: 3px; flex-shrink: 0; }
+  #offline.visible { display: flex; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: #555; }
+
+  #gear { font-size: 11px; color: #444; cursor: pointer; padding: 2px; border-radius: 3px; transition: color 0.15s; flex-shrink: 0; }
+  #gear:hover { color: #aaa; }
+</style>
+</head>
+<body>
+
+<!-- ══ SETUP PANEL ══ -->
+<div id="setup" class="panel">
+  <h3>OBS STATUS BARS · Connexion</h3>
+  <div class="row"><label>Hôte</label><input id="host" type="text" value="localhost"></div>
+  <div class="row"><label>Port</label><input id="port" type="number" value="4455"></div>
+  <div class="row"><label>Mot de passe</label><input id="password" type="password" placeholder="Laisser vide si désactivé"></div>
+  <div class="row check" style="max-width:290px; padding-left: 76px;">
+    <input type="checkbox" id="save-pwd">
+    <label for="save-pwd">Mémoriser le mot de passe</label>
+  </div>
+  <div class="btn-row">
+    <button class="btn" onclick="doConnect()">CONNECTER</button>
+    <button class="btn secondary" onclick="showThresholds()">⚙ Seuils</button>
+  </div>
+  <div class="msg" id="setup-msg"></div>
+</div>
+
+<!-- ══ THRESHOLDS PANEL ══ -->
+<div id="thresh-panel" class="panel hidden">
+  <h3>Seuils d'alerte</h3>
+  <div class="th-grid">
+    <div class="hdr"></div>
+    <div class="hdr" style="color:#ffc107">⚠ Jaune</div>
+    <div class="hdr" style="color:#f44336">🔴 Rouge</div>
+
+    <!-- CPU -->
+    <div class="lbl">CPU</div>
+    <div><input type="range" id="th-cpu-y" min="10" max="90" step="5"><div class="th-val" id="tv-cpu-y">60%</div></div>
+    <div><input type="range" id="th-cpu-r" min="20" max="99" step="5"><div class="th-val" id="tv-cpu-r">85%</div></div>
+
+    <!-- GPU -->
+    <div class="lbl">GPU</div>
+    <div><input type="range" id="th-gpu-y" min="10" max="90" step="5"><div class="th-val" id="tv-gpu-y">60%</div></div>
+    <div><input type="range" id="th-gpu-r" min="20" max="99" step="5"><div class="th-val" id="tv-gpu-r">85%</div></div>
+
+    <!-- RAM -->
+    <div class="lbl">RAM</div>
+    <div><input type="range" id="th-ram-y" min="10" max="90" step="5"><div class="th-val" id="tv-ram-y">60%</div></div>
+    <div><input type="range" id="th-ram-r" min="20" max="99" step="5"><div class="th-val" id="tv-ram-r">85%</div></div>
+
+    <!-- ENC -->
+    <div class="lbl">ENC</div>
+    <div><input type="range" id="th-enc-y" min="5"  max="60" step="5"><div class="th-val" id="tv-enc-y">15%</div></div>
+    <div><input type="range" id="th-enc-r" min="10" max="80" step="5"><div class="th-val" id="tv-enc-r">50%</div></div>
+
+    <!-- DROP -->
+    <div class="lbl">DROP</div>
+    <div><input type="range" id="th-drop-y" min="5"  max="60" step="5"><div class="th-val" id="tv-drop-y">15%</div></div>
+    <div><input type="range" id="th-drop-r" min="10" max="80" step="5"><div class="th-val" id="tv-drop-r">50%</div></div>
+
+    <!-- NET -->
+    <div class="lbl">NET</div>
+    <div><input type="range" id="th-net-y" min="10" max="90" step="5"><div class="th-val" id="tv-net-y">60%</div></div>
+    <div><input type="range" id="th-net-r" min="20" max="99" step="5"><div class="th-val" id="tv-net-r">85%</div></div>
+
+    <!-- CONG -->
+    <div class="lbl">CONG</div>
+    <div><input type="range" id="th-cong-y" min="5"  max="60" step="5"><div class="th-val" id="tv-cong-y">25%</div></div>
+    <div><input type="range" id="th-cong-r" min="10" max="90" step="5"><div class="th-val" id="tv-cong-r">60%</div></div>
+  </div>
+
+  <div class="btn-row" style="margin-top:6px">
+    <button class="btn" onclick="saveThresholds()">ENREGISTRER</button>
+    <button class="btn secondary" onclick="showSetup()">← Retour</button>
+  </div>
+  <div class="msg ok" id="thresh-msg"></div>
+</div>
+
+<!-- ══ STATUS BAR ══ -->
+<div id="bar">
+  <span class="fps" id="fps-lbl">--.-- FPS</span>
+  <div class="sep"></div>
+
+  <div class="metric">
+    <span class="metric-lbl">CPU</span>
+    <div class="bars" id="cpu-bars"></div>
+    <div class="tip" id="tt-cpu">CPU : --%</div>
+  </div>
+  <div class="metric">
+    <span class="metric-lbl">GPU</span>
+    <div class="bars" id="gpu-bars"></div>
+    <div class="tip" id="tt-gpu">Rendu : -- ms</div>
+  </div>
+  <div class="metric">
+    <span class="metric-lbl">RAM</span>
+    <div class="bars" id="ram-bars"></div>
+    <div class="tip" id="tt-ram">RAM OBS : -- MB</div>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="metric">
+    <span class="metric-lbl">ENC</span>
+    <div class="bars" id="enc-bars"></div>
+    <div class="tip" id="tt-enc">ENC skip : --</div>
+  </div>
+  <div class="metric">
+    <span class="metric-lbl">DROP</span>
+    <div class="bars" id="drop-bars"></div>
+    <div class="tip" id="tt-drop">DROP rendu : --</div>
+  </div>
+
+  <div class="sep"></div>
+
+  <div class="metric">
+    <span class="metric-lbl">NET</span>
+    <div class="bars" id="net-bars"></div>
+    <div class="tip" id="tt-net">Bitrate : --</div>
+  </div>
+  <div class="metric">
+    <span class="metric-lbl">CONG</span>
+    <div class="bars" id="cong-bars"></div>
+    <div class="tip" id="tt-cong">Congestion : --%</div>
+  </div>
+
+  <div class="spacer"></div>
+  <span id="retry-badge"></span>
+  <div id="offline"><div class="dot"></div>hors-ligne</div>
+  <span id="gear" title="Paramètres" onclick="showSetup()">⚙</span>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════
+const N    = 16;   // ← historique 16 points
+const POLL = 500;  // ms entre chaque poll
+const RETRY_DELAYS = [5000, 5000, 10000, 10000, 30000]; // backoff
+
+// Seuils par défaut (valeur 0-1)
+let TH = {
+  cpu:  { y: 0.60, r: 0.85 },
+  gpu:  { y: 0.60, r: 0.85 },
+  ram:  { y: 0.60, r: 0.85 },
+  enc:  { y: 0.15, r: 0.50 },
+  drop: { y: 0.15, r: 0.50 },
+  net:  { y: 0.60, r: 0.85 },
+  cong: { y: 0.25, r: 0.60 },
+};
+
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+let ws, connected = false, reqId = 0, cbs = {}, pollTimer;
+let retryTimer, retryStep = 0, retrying = false;
+let prevOutFrames = 0, prevSkipFrames = 0;
+let prevRenderTotal = 0, prevRenderSkipped = 0;
+let prevBytes = 0, prevBytesT = 0, maxBps = 1_500_000;
+let maxRamMB = 800;
+
+const hist = {};
+const METRICS = ['cpu','gpu','ram','enc','drop','net','cong'];
+METRICS.forEach(m => { hist[m] = Array(N).fill(0); });
+
+// ══════════════════════════════════════════════
+//  INIT BARS
+// ══════════════════════════════════════════════
+METRICS.forEach(m => {
+  const el = document.getElementById(m + '-bars');
+  el.innerHTML = '';
+  for (let i = 0; i < N; i++) {
+    const d = document.createElement('div');
+    d.className = 'b off';
+    el.appendChild(d);
+  }
+});
+
+// ══════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════
+function push(arr, v) { arr.shift(); arr.push(Math.min(1, Math.max(0, v))); }
+
+function colorFor(m, v) {
+  if (v < 0.005) return 'off';
+  const t = TH[m];
+  if (m === 'cong') {
+    return v >= t.r ? 'red' : v >= t.y ? 'orange' : 'yellow';
+  }
+  return v >= t.r ? 'red' : v >= t.y ? 'yellow' : 'green';
+}
+
+function render(m) {
+  const bs  = document.getElementById(m + '-bars').children;
+  const arr = hist[m];
+  for (let i = 0; i < N; i++) {
+    const v = arr[i];
+    bs[i].style.height = Math.max(1, Math.round(v * 12)) + 'px';
+    bs[i].className = 'b ' + colorFor(m, v);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  THRESHOLDS UI
+// ══════════════════════════════════════════════
+const TH_KEYS = ['cpu','gpu','ram','enc','drop','net','cong'];
+
+function initSliders() {
+  TH_KEYS.forEach(m => {
+    ['y','r'].forEach(lvl => {
+      const sl = document.getElementById(`th-${m}-${lvl}`);
+      const vl = document.getElementById(`tv-${m}-${lvl}`);
+      sl.value = Math.round(TH[m][lvl] * 100);
+      vl.textContent = sl.value + '%';
+      sl.oninput = () => { vl.textContent = sl.value + '%'; };
+    });
+  });
+}
+
+function saveThresholds() {
+  TH_KEYS.forEach(m => {
+    TH[m].y = parseInt(document.getElementById(`th-${m}-y`).value) / 100;
+    TH[m].r = parseInt(document.getElementById(`th-${m}-r`).value) / 100;
+  });
+  localStorage.setItem('obs-sb-thresholds', JSON.stringify(TH));
+  document.getElementById('thresh-msg').textContent = 'Seuils enregistrés ✓';
+  setTimeout(() => { document.getElementById('thresh-msg').textContent = ''; }, 1500);
+  METRICS.forEach(render); // re-render avec nouveaux seuils
+}
+
+function loadThresholds() {
+  try {
+    const s = localStorage.getItem('obs-sb-thresholds');
+    if (s) TH = JSON.parse(s);
+  } catch(e) {}
+}
+
+function showThresholds() {
+  initSliders();
+  document.getElementById('setup').classList.add('hidden');
+  document.getElementById('thresh-panel').classList.remove('hidden');
+}
+
+// ══════════════════════════════════════════════
+//  LOCALSTORAGE : credentials
+// ══════════════════════════════════════════════
+function saveCreds() {
+  const host = document.getElementById('host').value.trim();
+  const port = document.getElementById('port').value.trim();
+  const pwd  = document.getElementById('password').value;
+  const save = document.getElementById('save-pwd').checked;
+  localStorage.setItem('obs-sb-host', host);
+  localStorage.setItem('obs-sb-port', port);
+  localStorage.setItem('obs-sb-savepwd', save ? '1' : '0');
+  if (save && pwd) {
+    localStorage.setItem('obs-sb-pwd', pwd);
+  } else {
+    localStorage.removeItem('obs-sb-pwd');
+  }
+}
+
+function loadCreds() {
+  const host    = localStorage.getItem('obs-sb-host');
+  const port    = localStorage.getItem('obs-sb-port');
+  const savePwd = localStorage.getItem('obs-sb-savepwd') === '1';
+  const pwd     = localStorage.getItem('obs-sb-pwd');
+  if (host) document.getElementById('host').value = host;
+  if (port) document.getElementById('port').value = port;
+  if (savePwd) {
+    document.getElementById('save-pwd').checked = true;
+    if (pwd) document.getElementById('password').value = pwd;
+  }
+}
+
+// ══════════════════════════════════════════════
+//  WEBSOCKET
+// ══════════════════════════════════════════════
+async function sha256b64(s) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+function sendRaw(o) { if (ws?.readyState === 1) ws.send(JSON.stringify(o)); }
+function req(type, data = {}) {
+  return new Promise(res => {
+    const id = `r${++reqId}`;
+    cbs[id] = res;
+    sendRaw({ op: 6, d: { requestType: type, requestId: id, requestData: data } });
+    setTimeout(() => { if (cbs[id]) { res(null); delete cbs[id]; } }, 2000);
+  });
+}
+
+// Connexion effective (appelée aussi par le retry)
+let _host, _port, _pwd;
+
+async function connectWS(host, port, pwd, silent = false) {
+  if (!silent) setMsg('Connexion…');
+  if (ws) { try { ws.close(); } catch(e){} ws = null; }
+
+  ws = new WebSocket(`ws://${host}:${port}`);
+
+  ws.onmessage = async ({ data }) => {
+    const m = JSON.parse(data);
+    if (m.op === 0) {
+      const id = { rpcVersion: 1 };
+      if (m.d.authentication) {
+        if (!pwd) { setMsg('Mot de passe requis !'); ws.close(); return; }
+        const { salt, challenge } = m.d.authentication;
+        id.authentication = await sha256b64(await sha256b64(pwd + salt) + challenge);
+      }
+      sendRaw({ op: 1, d: id });
+    }
+    else if (m.op === 2) {
+      connected = true; retrying = false; retryStep = 0;
+      clearTimeout(retryTimer);
+      document.getElementById('setup').classList.add('hidden');
+      document.getElementById('thresh-panel').classList.add('hidden');
+      document.getElementById('bar').classList.add('visible');
+      document.getElementById('offline').classList.remove('visible');
+      document.getElementById('retry-badge').classList.remove('visible');
+      startPoll();
+    }
+    else if (m.op === 7) {
+      const cb = cbs[m.d.requestId];
+      if (cb) { cb(m.d.responseData); delete cbs[m.d.requestId]; }
+    }
+  };
+
+  ws.onerror = () => {
+    if (!silent) setMsg('Connexion refusée. OBS est-il ouvert ?');
+  };
+
+  ws.onclose = () => {
+    connected = false;
+    clearInterval(pollTimer);
+    // Si on était connecté (fermeture inattendue), déclencher le retry
+    if (!retrying && _host) {
+      document.getElementById('offline').classList.add('visible');
+      scheduleRetry();
+    }
+  };
+}
+
+function scheduleRetry() {
+  retrying = true;
+  const delay = RETRY_DELAYS[Math.min(retryStep, RETRY_DELAYS.length - 1)];
+  retryStep++;
+  const badge = document.getElementById('retry-badge');
+  badge.classList.add('visible');
+
+  let countdown = Math.round(delay / 1000);
+  badge.textContent = `↺ ${countdown}s`;
+  const tick = setInterval(() => {
+    countdown--;
+    badge.textContent = countdown > 0 ? `↺ ${countdown}s` : '↺ …';
+  }, 1000);
+
+  retryTimer = setTimeout(() => {
+    clearInterval(tick);
+    badge.textContent = '↺ …';
+    connectWS(_host, _port, _pwd, true);
+  }, delay);
+}
+
+// ── Bouton Connecter ─────────────────────────
+async function doConnect() {
+  _host = document.getElementById('host').value.trim() || 'localhost';
+  _port = document.getElementById('port').value.trim() || '4455';
+  _pwd  = document.getElementById('password').value;
+  saveCreds();
+  retrying = false; retryStep = 0;
+  clearTimeout(retryTimer);
+  await connectWS(_host, _port, _pwd);
+}
+
+// ══════════════════════════════════════════════
+//  POLLING
+// ══════════════════════════════════════════════
+async function poll() {
+  if (!connected) return;
+  try {
+    const s = await req('GetStats');
+    if (!s) return;
+
+    const fps      = s.activeFps ?? 60;
+    const cpuV     = (s.cpuUsage ?? 0) / 100;
+    const renderMs = s.averageFrameRenderTime ?? 0;
+    const gpuV     = Math.min(1, renderMs / (fps > 0 ? 1000 / fps : 16.67));
+
+    const ramMB = s.memoryUsage ?? 0;
+    if (ramMB > maxRamMB * 0.8) maxRamMB = ramMB * 1.4;
+    const ramV = Math.min(1, ramMB / maxRamMB);
+
+    const tot   = s.outputTotalFrames   ?? 0;
+    const skip  = s.outputSkippedFrames ?? 0;
+    const dTot  = tot  - prevOutFrames;
+    const dSkip = skip - prevSkipFrames;
+    prevOutFrames = tot; prevSkipFrames = skip;
+    const encV = dTot > 0 ? Math.min(1, (dSkip / dTot) * 8) : 0;
+
+    const rTot  = s.renderTotalFrames   ?? 0;
+    const rSkip = s.renderSkippedFrames ?? 0;
+    const drTot  = rTot  - prevRenderTotal;
+    const drSkip = rSkip - prevRenderSkipped;
+    prevRenderTotal = rTot; prevRenderSkipped = rSkip;
+    const dropV = drTot > 0 ? Math.min(1, (drSkip / drTot) * 8) : 0;
+
+    push(hist.cpu, cpuV);  push(hist.gpu, gpuV); push(hist.ram, ramV);
+    push(hist.enc, encV);  push(hist.drop, dropV);
+    ['cpu','gpu','ram','enc','drop'].forEach(render);
+
+    document.getElementById('fps-lbl').textContent  = fps.toFixed(2) + ' FPS';
+    document.getElementById('tt-cpu').textContent   = 'CPU : '      + (cpuV * 100).toFixed(1) + '%';
+    document.getElementById('tt-gpu').textContent   = 'Rendu : '    + renderMs.toFixed(2) + ' ms';
+    document.getElementById('tt-ram').textContent   = 'RAM OBS : '  + ramMB.toFixed(0) + ' MB';
+    document.getElementById('tt-enc').textContent   = dTot  > 0 ? `ENC skip : ${dSkip}/${dTot} frames`  : 'ENC : inactif';
+    document.getElementById('tt-drop').textContent  = drTot > 0 ? `DROP : ${drSkip}/${drTot} frames` : 'DROP : aucun';
+
+    const st = await req('GetStreamStatus');
+    if (st?.outputActive) {
+      const bytes = st.outputBytes ?? 0;
+      const now   = Date.now();
+      if (prevBytes > 0 && prevBytesT > 0) {
+        const dt  = (now - prevBytesT) / 1000;
+        const bps = dt > 0 ? (bytes - prevBytes) / dt : 0;
+        if (bps > maxBps * 0.7) maxBps = bps * 1.5;
+        push(hist.net, bps / maxBps);
+        render('net');
+        document.getElementById('tt-net').textContent = 'Bitrate : ' + (bps * 8 / 1000).toFixed(0) + ' kb/s';
+      }
+      prevBytes = bytes; prevBytesT = now;
+
+      const congV = Math.min(1, st.outputCongestion ?? 0);
+      push(hist.cong, congV); render('cong');
+      document.getElementById('tt-cong').textContent = 'Congestion : ' + (congV * 100).toFixed(1) + '%';
+    } else {
+      push(hist.net, 0);  render('net');
+      push(hist.cong, 0); render('cong');
+      document.getElementById('tt-net').textContent  = 'NET : pas de stream actif';
+      document.getElementById('tt-cong').textContent = 'CONG : pas de stream actif';
+      prevBytes = 0; prevBytesT = 0;
+    }
+  } catch(e) {}
+}
+
+function startPoll() { clearInterval(pollTimer); poll(); pollTimer = setInterval(poll, POLL); }
+
+// ══════════════════════════════════════════════
+//  NAV
+// ══════════════════════════════════════════════
+function showSetup() {
+  if (ws) { try { ws.close(); } catch(e){} }
+  connected = false; retrying = false;
+  clearInterval(pollTimer); clearTimeout(retryTimer);
+  document.getElementById('bar').classList.remove('visible');
+  document.getElementById('thresh-panel').classList.add('hidden');
+  document.getElementById('setup').classList.remove('hidden');
+  document.getElementById('offline').classList.remove('visible');
+  document.getElementById('retry-badge').classList.remove('visible');
+  setMsg('');
+}
+
+function setMsg(t) { document.getElementById('setup-msg').textContent = t; }
+
+// ══════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════
+window.addEventListener('load', () => {
+  loadThresholds();
+  loadCreds();
+
+  // Tentative de connexion automatique si creds en mémoire
+  const host = localStorage.getItem('obs-sb-host') || 'localhost';
+  const port = localStorage.getItem('obs-sb-port') || '4455';
+  const pwd  = localStorage.getItem('obs-sb-pwd')  || '';
+
+  _host = host; _port = port; _pwd = pwd;
+
+  // Probe silencieuse
+  const probe = new WebSocket(`ws://${host}:${port}`);
+  probe.onmessage = async ({ data }) => {
+    const m = JSON.parse(data);
+    if (m.op === 0) {
+      probe.close();
+      if (!m.d.authentication || pwd) {
+        connectWS(host, port, pwd, true);
+      }
+      // Sinon on attend que l'utilisateur saisisse le mdp
+    }
+  };
+  probe.onerror = () => {};
+});
+</script>
+</body>
+</html>
